@@ -8,6 +8,6 @@ try {
     echo "HEALTH_OK\n";
 } catch (Throwable $e) {
     echo "HEALTH_FAIL\n";
-    // Keep output safe for assessment (no secrets). Uncomment if you need:
-    // echo $e->getMessage() . "\n";
+    echo "ERROR_TYPE: " . get_class($e) . "\n";
+    echo "ERROR_MSG: " . $e->getMessage() . "\n";
 }
