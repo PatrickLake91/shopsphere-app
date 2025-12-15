@@ -1,0 +1,11 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Secrets (don’t ever commit)
+.env
+*.publishsettings
+
+# Logs
+*.log
