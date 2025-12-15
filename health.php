@@ -1,9 +1,10 @@
 ﻿<?php
-require_once __DIR__ . "/db.php";
+declare(strict_types=1);
 
 header("Content-Type: text/plain; charset=UTF-8");
 
 try {
+    require_once __DIR__ . "/db.php";
     $pdo->query("SELECT 1");
     echo "HEALTH_OK\n";
 } catch (Throwable $e) {
