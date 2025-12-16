@@ -45,6 +45,7 @@ if (!in_array($page, $allowed, true)) {
   <a href="/index.php?page=orders">Orders</a>
   <a href="/index.php?page=wishlist">Wishlist</a>
   <a href="/index.php?page=admin_products">Admin Products</a>
+  <a href="/index.php?page=login">Login</a>
   <a href="/health.php">Health</a>
 </div>
 
