@@ -9,8 +9,8 @@ if (!($pdo instanceof PDO)) {
     return;
 }
 
-// Demo user until login exists
-$demoUserId = 1;
+// Use logged-in user if present, otherwise fallback to demo user 1
+$userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 1;
 
 // Handle "Add to wishlist" POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'wishlist_add' && isset($_POST['product_id'])) {
@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'wishl
     if ($pid > 0) {
         // composite PK (user_id, product_id) => duplicates safe via INSERT IGNORE
         $stmt = $pdo->prepare("INSERT IGNORE INTO wishlists (user_id, product_id) VALUES (?, ?)");
-        $stmt->execute([$demoUserId, $pid]);
+        $stmt->execute([$userId, $pid]);
     }
     header('Location: /index.php?page=catalogue');
     exit;
