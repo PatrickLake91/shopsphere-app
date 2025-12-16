@@ -1,22 +1,23 @@
 <?php
+// db.php — reads Azure App Settings and creates $pdo (PDO connection)
 
-$host = getenv('DB_HOST');
-$db   = getenv('DB_NAME');
-$user = getenv('DB_USER');
-$pass = getenv('DB_PASS');
+// Accept either DB_USER or DB_USERNAME (covers earlier confusion)
+$DB_HOST = getenv('DB_HOST') ?: '';
+$DB_NAME = getenv('DB_NAME') ?: '';
+$DB_USER = getenv('DB_USER') ?: (getenv('DB_USERNAME') ?: '');
+$DB_PASS = getenv('DB_PASSWORD') ?: '';
 
-$dsn = "mysql:host={$host};dbname={$db};charset=utf8mb4";
+// If any are missing, don't attempt DB connection.
+// health.php will show NOT_CONFIGURED.
+if ($DB_HOST === '' || $DB_NAME === '' || $DB_USER === '' || $DB_PASS === '') {
+    return;
+}
+
+$dsn = "mysql:host={$DB_HOST};dbname={$DB_NAME};charset=utf8mb4";
 
 $options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
 ];
 
-try {
-    $pdo = new PDO($dsn, $user, $pass, $options);
-} catch (PDOException $e) {
-    // Intentionally silent.
-    // Connection failures are handled by callers (health check, app logic).
-    $pdo = null;
-}
+$pdo = new PDO($dsn, $DB_USER, $DB_PASS, $options);
