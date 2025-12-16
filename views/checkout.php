@@ -14,6 +14,13 @@ function money(float $n): string { return '£' . number_format($n, 2); }
 // Resolve user
 $userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 1;
 
+// Virtual payment methods (demo)
+$allowedMethods = ['CARD','PAYPAL','APPLEPAY','BANK_TRANSFER'];
+$paymentMethod = strtoupper((string)($_POST['payment_method'] ?? 'CARD'));
+if (!in_array($paymentMethod, $allowedMethods, true)) {
+    $paymentMethod = 'CARD';
+}
+
 try {
     if ($cart && $pdo instanceof PDO) {
         $ids = array_map('intval', array_keys($cart));
@@ -50,13 +57,22 @@ try {
 
 // PLACE ORDER
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place_order') {
-    if ($pdo instanceof PDO && $items) {
+
+    // Validate payment method explicitly on submit (demo safety)
+    $submittedMethod = strtoupper((string)($_POST['payment_method'] ?? ''));
+    if (!in_array($submittedMethod, $allowedMethods, true)) {
+        $errors[] = "Invalid payment method selected.";
+    } else {
+        $paymentMethod = $submittedMethod;
+    }
+
+    if (!$errors && $pdo instanceof PDO && $items) {
         try {
             $pdo->beginTransaction();
 
-            // Create order
-            $stmt = $pdo->prepare("INSERT INTO orders (userid) VALUES (?)");
-            $stmt->execute([$userId]);
+            // Create order (status defaults to NEW in DB, but we set it explicitly for clarity)
+            $stmt = $pdo->prepare("INSERT INTO orders (userid, status, payment_method) VALUES (?, 'NEW', ?)");
+            $stmt->execute([$userId, $paymentMethod]);
             $orderId = (int)$pdo->lastInsertId();
 
             // Order items
@@ -91,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
 
 <?php if ($placed): ?>
   <div class="msg" style="border:1px solid #cfe9cf; background:#eef9ee;">
-    <strong>Order placed!</strong> (Demo)
+    <strong>Order placed!</strong> (Demo) Payment method recorded: <strong><?= h($paymentMethod) ?></strong>
   </div>
 <?php endif; ?>
 
@@ -124,6 +140,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
 
   <form method="post">
     <input type="hidden" name="action" value="place_order">
-    <button class="btn">Place order</button>
+
+    <label class="muted" for="payment_method"><strong>Payment method (virtual)</strong></label><br>
+    <select name="payment_method" id="payment_method" class="btn" style="margin:8px 0; padding:8px 10px;">
+      <?php foreach ($allowedMethods as $m): ?>
+        <option value="<?= h($m) ?>" <?= $paymentMethod === $m ? 'selected' : '' ?>><?= h($m) ?></option>
+      <?php endforeach; ?>
+    </select>
+
+    <div style="margin-top:10px;">
+      <button class="btn">Place order</button>
+    </div>
   </form>
+
+  <p class="muted" style="margin-top:10px;">Demo note: this simulates payment selection and validates allowed methods without processing real payments.</p>
 <?php endif; ?>
