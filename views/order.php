@@ -3,12 +3,14 @@ declare(strict_types=1);
 
 /** @var PDO|null $pdo */
 
-echo "<h1>Order details</h1>";
+echo "<h1>Order Details</h1>";
 
 if (!($pdo instanceof PDO)) {
     echo '<p class="msg"><strong>Database not configured.</strong> (PDO unavailable)</p>';
     return;
 }
+
+$userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 1;
 
 $orderId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($orderId < 1) {
@@ -17,7 +19,7 @@ if ($orderId < 1) {
     return;
 }
 
-// Fetch basic order header
+// Confirm order belongs to this user
 $stmt = $pdo->prepare("SELECT id, userid, created_at FROM orders WHERE id = ?");
 $stmt->execute([$orderId]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -28,10 +30,16 @@ if (!$order) {
     return;
 }
 
-// Fetch line items
+if ((int)$order['userid'] !== $userId) {
+    http_response_code(403);
+    echo '<p class="msg" style="background:#ffecec; border:1px solid #f5c2c2;"><strong>Forbidden:</strong> you can only view your own orders.</p>';
+    echo '<p><a class="btn" href="/index.php?page=orders">Back to orders</a></p>';
+    return;
+}
+
+// Fetch items
 $sql = "
 SELECT
-  oi.id AS order_item_id,
   oi.product_id,
   p.productname,
   oi.qty,
@@ -42,45 +50,41 @@ LEFT JOIN products p ON p.id = oi.product_id
 WHERE oi.order_id = ?
 ORDER BY oi.id ASC
 ";
-$stmtItems = $pdo->prepare($sql);
-$stmtItems->execute([$orderId]);
-$items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+$stmt = $pdo->prepare($sql);
+$stmt->execute([$orderId]);
+$items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-echo '<p class="muted">Order <strong>#' . h((string)$order['id']) . '</strong> | User: ' . h((string)$order['userid']) . ' | Created: ' . h((string)$order['created_at']) . '</p>';
+$total = 0.0;
+foreach ($items as $it) {
+    $total += (float)$it['line_total'];
+}
+
+echo '<p class="muted">Order <strong>#' . h((string)$orderId) . '</strong> for user <strong>#' . h((string)$userId) . '</strong></p>';
+echo '<p class="muted">Created: ' . h((string)$order['created_at']) . '</p>';
 
 if (!$items) {
-    echo '<p>No items found for this order.</p>';
+    echo '<p>No items recorded for this order.</p>';
     echo '<p><a class="btn" href="/index.php?page=orders">Back to orders</a></p>';
     return;
 }
 
-$total = 0.0;
-
-echo "<table>";
-echo "<thead><tr><th>Item ID</th><th>Product</th><th>Qty</th><th>Price</th><th>Line total</th></tr></thead><tbody>";
+echo '<table>';
+echo '<thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Line total</th></tr></thead><tbody>';
 
 foreach ($items as $it) {
+    $name = $it['productname'] !== null ? (string)$it['productname'] : ('Product #' . (int)$it['product_id']);
+    $qty = (int)$it['qty'];
+    $price = (float)$it['price_each'];
     $line = (float)$it['line_total'];
-    $total += $line;
 
-    $name = isset($it['productname']) && $it['productname'] !== null
-        ? (string)$it['productname']
-        : ("Product #" . (int)$it['product_id']);
-
-    echo "<tr>";
-    echo "<td>" . h((string)$it['order_item_id']) . "</td>";
-    echo "<td>" . h($name) . "</td>";
-    echo "<td>" . h((string)(int)$it['qty']) . "</td>";
-    echo "<td>£" . number_format((float)$it['price_each'], 2) . "</td>";
-    echo "<td>£" . number_format($line, 2) . "</td>";
-    echo "</tr>";
+    echo '<tr>';
+    echo '<td>' . h($name) . '</td>';
+    echo '<td>' . h((string)$qty) . '</td>';
+    echo '<td>£' . number_format($price, 2) . '</td>';
+    echo '<td>£' . number_format($line, 2) . '</td>';
+    echo '</tr>';
 }
 
-echo "</tbody></table>";
-
-echo '<p style="margin-top:12px;"><strong>Order total:</strong> £' . number_format($total, 2) . '</p>';
-
-echo '<p style="margin-top:12px;">';
-echo '<a class="btn" href="/index.php?page=orders">Back to orders</a> ';
-echo '<a class="btn" href="/index.php?page=catalogue">Shop more</a>';
-echo '</p>';
+echo '</tbody></table>';
+echo '<p style="margin-top:12px;"><strong>Total:</strong> £' . number_format($total, 2) . '</p>';
+echo '<p style="margin-top:12px;"><a class="btn" href="/index.php?page=orders">Back to orders</a></p>';
