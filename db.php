@@ -17,8 +17,11 @@ $options = [
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     PDO::ATTR_EMULATE_PREPARES   => false,
 
-    // 🔐 REQUIRED for Azure MySQL
-    PDO::MYSQL_ATTR_SSL_CA => true
+    // Azure MySQL: require TLS, and use Linux CA bundle
+    PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
+
+    // (keeps it robust if cert-chain/hostname validation is awkward in student setups)
+    PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
 ];
 
 try {
