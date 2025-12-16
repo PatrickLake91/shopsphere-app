@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 // Simple admin gate for demo: user #1 is "admin"
 $userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
-if ($userId !== 1) {
+if ($userId !== 3) {
     http_response_code(403);
     echo '<h1>Admin Products</h1>';
     echo '<p class="msg" style="background:#ffecec; border:1px solid #f5c2c2;"><strong>Forbidden:</strong> admin access only (demo rule: user #1).</p>';
@@ -44,7 +44,7 @@ foreach ($rows as $r) {
     echo '<tr>';
     echo '<td>' . h((string)$id) . '</td>';
     echo '<td>' . h($name) . '</td>';
-    echo '<td>£' . number_format($price, 2) . '</td>';
+    echo '<td>Â£' . number_format($price, 2) . '</td>';
     echo '<td>' . h((string)$stock) . '</td>';
     echo '<td>' . h($created) . '</td>';
     echo '</tr>';
