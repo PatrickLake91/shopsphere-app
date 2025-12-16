@@ -10,15 +10,17 @@ if (!($pdo instanceof PDO)) {
     return;
 }
 
-// Demo user until login exists
-$demoUserId = 1;
+// Use logged-in user if present, otherwise fallback to demo user 1
+$userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 1;
+
+echo '<p class="muted">Showing wishlist for user <strong>#' . h((string)$userId) . '</strong>.</p>';
 
 // Remove handler (POST)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'remove' && isset($_POST['product_id'])) {
     $pid = (int)$_POST['product_id'];
     if ($pid > 0) {
         $stmt = $pdo->prepare("DELETE FROM wishlists WHERE user_id = ? AND product_id = ?");
-        $stmt->execute([$demoUserId, $pid]);
+        $stmt->execute([$userId, $pid]);
     }
     header('Location: /index.php?page=wishlist');
     exit;
@@ -38,7 +40,7 @@ ORDER BY w.created_at DESC
 ";
 
 $stmt = $pdo->prepare($sql);
-$stmt->execute([$demoUserId]);
+$stmt->execute([$userId]);
 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (!$items) {
