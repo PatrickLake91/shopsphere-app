@@ -19,8 +19,8 @@ if ($orderId < 1) {
     return;
 }
 
-// Fetch order (we will enforce ownership below)
-$stmt = $pdo->prepare("SELECT id, userid, status, created_at FROM orders WHERE id = ?");
+// Fetch order (ownership check below)
+$stmt = $pdo->prepare("SELECT id, userid, status, payment_method, created_at FROM orders WHERE id = ?");
 $stmt->execute([$orderId]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -45,7 +45,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'advan
     $current = (string)$order['status'];
     $next = $current;
 
-    // Simple lifecycle for demo tracking
     switch ($current) {
         case 'NEW':        $next = 'PACKED'; break;
         case 'PACKED':     $next = 'DISPATCHED'; break;
@@ -54,19 +53,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'advan
         default:           $next = 'NEW'; break;
     }
 
-    // Only update if it actually changes
     if ($next !== $current) {
         $upd = $pdo->prepare("UPDATE orders SET status = ? WHERE id = ? AND userid = ?");
         $upd->execute([$next, $orderId, $userId]);
     }
 
-    // Redirect to avoid re-POST on refresh, and re-fetch updated order
     header('Location: /index.php?page=order&id=' . urlencode((string)$orderId) . '&updated=1');
     exit;
 }
 
-// Re-fetch (ensures status shown matches DB after any update)
-$stmt = $pdo->prepare("SELECT id, userid, status, created_at FROM orders WHERE id = ? AND userid = ?");
+// Re-fetch to show up-to-date DB values
+$stmt = $pdo->prepare("SELECT id, userid, status, payment_method, created_at FROM orders WHERE id = ? AND userid = ?");
 $stmt->execute([$orderId, $userId]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -104,6 +101,7 @@ foreach ($items as $it) {
 
 echo '<p class="muted">Order <strong>#' . h((string)$orderId) . '</strong> for user <strong>#' . h((string)$userId) . '</strong></p>';
 echo '<p class="muted">Status: <strong>' . h((string)$order['status']) . '</strong></p>';
+echo '<p class="muted">Payment: <strong>' . h((string)$order['payment_method']) . '</strong></p>';
 echo '<p class="muted">Created: ' . h((string)$order['created_at']) . '</p>';
 
 if ($msg) {
