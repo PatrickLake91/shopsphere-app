@@ -19,8 +19,8 @@ if ($orderId < 1) {
     return;
 }
 
-// Confirm order belongs to this user
-$stmt = $pdo->prepare("SELECT id, userid, created_at FROM orders WHERE id = ?");
+// Confirm order exists (and belongs to this user)
+$stmt = $pdo->prepare("SELECT id, userid, status, created_at FROM orders WHERE id = ?");
 $stmt->execute([$orderId]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -60,6 +60,7 @@ foreach ($items as $it) {
 }
 
 echo '<p class="muted">Order <strong>#' . h((string)$orderId) . '</strong> for user <strong>#' . h((string)$userId) . '</strong></p>';
+echo '<p class="muted">Status: <strong>' . h((string)$order['status']) . '</strong></p>';
 echo '<p class="muted">Created: ' . h((string)$order['created_at']) . '</p>';
 
 if (!$items) {
