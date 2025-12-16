@@ -26,7 +26,8 @@ try {
         $ids = array_map('intval', array_keys($cart));
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
-        $stmt = $pdo->prepare("SELECT id, productname, price FROM products WHERE id IN ($placeholders)");
+        // Include stock now
+        $stmt = $pdo->prepare("SELECT id, productname, price, stock FROM products WHERE id IN ($placeholders)");
         $stmt->execute($ids);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -47,7 +48,8 @@ try {
                 'name' => (string)$byId[$id]['productname'],
                 'price' => $price,
                 'qty' => $qty,
-                'line' => $line
+                'line' => $line,
+                'stock' => (int)$byId[$id]['stock'],
             ];
         }
     }
@@ -70,7 +72,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
         try {
             $pdo->beginTransaction();
 
-            // Create order (status defaults to NEW in DB, but we set it explicitly for clarity)
+            // --- Stock check + decrement (real-time stock updates demo) ---
+            // Lock relevant product rows for the duration of the transaction
+            $lockStmt = $pdo->prepare("SELECT id, stock FROM products WHERE id = ? FOR UPDATE");
+            $decStmt  = $pdo->prepare("UPDATE products SET stock = stock - ? WHERE id = ?");
+
+            foreach ($items as $it) {
+                $pid = (int)$it['id'];
+                $need = (int)$it['qty'];
+
+                $lockStmt->execute([$pid]);
+                $row = $lockStmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$row) {
+                    throw new RuntimeException("Product #$pid no longer exists.");
+                }
+
+                $available = (int)$row['stock'];
+                if ($need > $available) {
+                    throw new RuntimeException("Insufficient stock for " . (string)$it['name'] . " (need $need, available $available).");
+                }
+
+                $decStmt->execute([$need, $pid]);
+            }
+
+            // Create order (status + payment_method stored)
             $stmt = $pdo->prepare("INSERT INTO orders (userid, status, payment_method) VALUES (?, 'NEW', ?)");
             $stmt->execute([$userId, $paymentMethod]);
             $orderId = (int)$pdo->lastInsertId();
@@ -95,8 +121,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
             $placed = true;
             $items = [];
             $total = 0.0;
+
         } catch (Throwable $e) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             $errors[] = "Order failed: " . $e->getMessage();
         }
     }
@@ -123,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
   <p class="muted">Ordering as user <strong>#<?= h((string)$userId) ?></strong>.</p>
 
   <table>
-    <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Line</th></tr></thead>
+    <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Line</th><th>Stock</th></tr></thead>
     <tbody>
     <?php foreach ($items as $it): ?>
       <tr>
@@ -131,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
         <td><?= money($it['price']) ?></td>
         <td><?= (int)$it['qty'] ?></td>
         <td><?= money($it['line']) ?></td>
+        <td><?= h((string)$it['stock']) ?></td>
       </tr>
     <?php endforeach; ?>
     </tbody>
@@ -153,5 +183,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
     </div>
   </form>
 
-  <p class="muted" style="margin-top:10px;">Demo note: this simulates payment selection and validates allowed methods without processing real payments.</p>
+  <p class="muted" style="margin-top:10px;">Demo note: this simulates payment selection and updates stock in the database on successful checkout.</p>
 <?php endif; ?>
