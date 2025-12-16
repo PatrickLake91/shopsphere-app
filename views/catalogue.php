@@ -9,22 +9,7 @@ if (!($pdo instanceof PDO)) {
     return;
 }
 
-// Use logged-in user if present, otherwise fallback to demo user 1
-$userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 1;
-
-// Handle "Add to wishlist" POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'wishlist_add' && isset($_POST['product_id'])) {
-    $pid = (int)$_POST['product_id'];
-    if ($pid > 0) {
-        // composite PK (user_id, product_id) => duplicates safe via INSERT IGNORE
-        $stmt = $pdo->prepare("INSERT IGNORE INTO wishlists (user_id, product_id) VALUES (?, ?)");
-        $stmt->execute([$userId, $pid]);
-    }
-    header('Location: /index.php?page=catalogue');
-    exit;
-}
-
-$stmt = $pdo->query("SELECT id, productname, price, created_at FROM products ORDER BY id ASC");
+$stmt = $pdo->query("SELECT id, productname, price, stock, created_at FROM products ORDER BY id ASC");
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -32,24 +17,32 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <div class="grid">
   <?php foreach ($products as $p): ?>
+    <?php
+      $pid = (int)$p['id'];
+      $name = (string)($p['productname'] ?? ('Product #' . $pid));
+      $price = (float)($p['price'] ?? 0);
+      $stock = (int)($p['stock'] ?? 0);
+      $created = (string)($p['created_at'] ?? '');
+      $inStock = $stock > 0;
+    ?>
     <div class="card">
-      <div><strong><?= h((string)$p['productname']) ?></strong></div>
-      <div class="muted">Added: <?= h((string)$p['created_at']) ?></div>
-      <div><strong>£<?= number_format((float)$p['price'], 2) ?></strong></div>
+      <div><strong><?= h($name) ?></strong></div>
+      <div class="muted">Added: <?= h($created) ?></div>
+      <div><strong>£<?= number_format($price, 2) ?></strong></div>
+      <div class="muted">Stock: <strong><?= h((string)$stock) ?></strong></div>
 
-      <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
-        <form method="post" action="/index.php?page=cart" style="margin:0;">
+      <?php if ($inStock): ?>
+        <form method="post" action="/index.php?page=cart" style="margin-top:10px;">
           <input type="hidden" name="action" value="add">
-          <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
+          <input type="hidden" name="product_id" value="<?= $pid ?>">
           <button class="btn" type="submit">Add to cart</button>
         </form>
-
-        <form method="post" action="/index.php?page=catalogue" style="margin:0;">
-          <input type="hidden" name="action" value="wishlist_add">
-          <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
-          <button class="btn" type="submit">♡ Wishlist</button>
-        </form>
-      </div>
+      <?php else: ?>
+        <div class="msg" style="margin-top:10px; background:#fff6d6; border:1px solid #f0d48a;">
+          <strong>Out of stock</strong>
+        </div>
+        <button class="btn" type="button" disabled style="opacity:0.5; margin-top:10px;">Add to cart</button>
+      <?php endif; ?>
     </div>
   <?php endforeach; ?>
 </div>
