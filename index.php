@@ -7,7 +7,7 @@ require __DIR__ . '/db.php';
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
 $page = $_GET['page'] ?? 'catalogue';
-$allowed = ['catalogue','cart','checkout','health'];
+$allowed = ['catalogue','cart','checkout','orders','health'];
 
 if (!in_array($page, $allowed, true)) {
     http_response_code(404);
@@ -42,6 +42,7 @@ if (!in_array($page, $allowed, true)) {
   <a href="/index.php?page=catalogue">Catalogue</a>
   <a href="/index.php?page=cart">Cart</a>
   <a href="/index.php?page=checkout">Checkout</a>
+  <a href="/index.php?page=orders">Orders</a>
   <a href="/health.php">Health</a>
 </div>
 
