@@ -7,7 +7,7 @@ require __DIR__ . '/db.php';
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
 $page = $_GET['page'] ?? 'catalogue';
-$allowed = ['catalogue','cart','checkout','orders','health'];
+$allowed = ['catalogue','cart','checkout','orders','order','health'];
 
 if (!in_array($page, $allowed, true)) {
     http_response_code(404);

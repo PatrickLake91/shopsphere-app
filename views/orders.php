@@ -10,8 +10,6 @@ if (!($pdo instanceof PDO)) {
     return;
 }
 
-// Simple read-only orders summary (latest first).
-// Uses existing schema only: orders + order_items.
 $sql = "
 SELECT
   o.id AS order_id,
@@ -34,7 +32,7 @@ if (!$orders) {
 }
 
 echo "<table>";
-echo "<thead><tr><th>Order ID</th><th>User</th><th>Created</th><th>Items</th><th>Total</th></tr></thead><tbody>";
+echo "<thead><tr><th>Order ID</th><th>User</th><th>Created</th><th>Items</th><th>Total</th><th>Action</th></tr></thead><tbody>";
 
 foreach ($orders as $o) {
     $orderId = (int)$o['order_id'];
@@ -49,6 +47,7 @@ foreach ($orders as $o) {
     echo "<td>" . h($created) . "</td>";
     echo "<td>" . h((string)$items) . "</td>";
     echo "<td>£" . number_format($total, 2) . "</td>";
+    echo "<td><a class=\"btn\" href=\"/index.php?page=order&id=" . h((string)$orderId) . "\">View</a></td>";
     echo "</tr>";
 }
 
