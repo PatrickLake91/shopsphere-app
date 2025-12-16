@@ -7,7 +7,7 @@ require __DIR__ . '/db.php';
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
 $page = $_GET['page'] ?? 'catalogue';
-$allowed = ['catalogue','cart','checkout','auth','orders','wishlist','logout'];
+$allowed = ['catalogue'];
 
 if (!in_array($page, $allowed, true)) {
     http_response_code(404);
@@ -15,48 +15,47 @@ if (!in_array($page, $allowed, true)) {
     echo "Not found";
     exit;
 }
-
-if ($page === 'logout') {
-    $_SESSION = [];
-    if (ini_get("session.use_cookies")) {
-        $params = session_get_cookie_params();
-        setcookie(session_name(), '', time() - 42000, $params["path"], $params["domain"], $params["secure"], $params["httponly"]);
-    }
-    session_destroy();
-    header('Location: /index.php?page=auth');
-    exit;
-}
-
-header('Content-Type: text/html; charset=utf-8');
-
 ?><!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ShopSphere</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    .top { display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+    .top a { text-decoration:none; padding:8px 10px; border:1px solid #ccc; border-radius:8px; color:#000; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:14px; }
+    .card { border:1px solid #ddd; border-radius:12px; padding:14px; }
+    .muted { color:#666; font-size:0.95em; margin-top:6px; }
+    .price { margin-top:10px; font-weight:bold; }
+    .btn { padding:8px 10px; border-radius:10px; border:1px solid #333; background:#fff; cursor:pointer; margin-top:10px; }
+    .err { padding:10px; border-radius:10px; background:#ffecec; border:1px solid #ffb3b3; }
+  </style>
 </head>
 <body>
-  <div style="font-family:Arial; margin:24px;">
-    <h1>ShopSphere Router OK</h1>
-    <p>page = <?= h($page) ?></p>
-    <ul>
-      <li><a href="/index.php?page=catalogue">Catalogue</a></li>
-      <li><a href="/index.php?page=cart">Cart</a></li>
-      <li><a href="/index.php?page=orders">Orders</a></li>
-      <li><a href="/index.php?page=wishlist">Wishlist</a></li>
-      <li><a href="/index.php?page=auth">Login/Register</a></li>
-      <li><a href="/health.php">Health</a></li>
-    </ul>
 
-    <?php
-      $viewFile = __DIR__ . '/views/' . $page . '.php';
-      if (!is_file($viewFile)) {
-          echo "<pre>Placeholder: $viewFile not created yet.</pre>";
-      } else {
-          require $viewFile;
-      }
-    ?>
-  </div>
+<div class="top">
+  <strong>ShopSphere</strong>
+  <a href="/index.php?page=catalogue">Catalogue</a>
+  <a href="/cart.php">Cart</a>
+  <a href="/health.php">Health</a>
+</div>
+
+<?php
+$viewFile = __DIR__ . '/views/' . $page . '.php';
+
+try {
+    if (!is_file($viewFile)) {
+        echo '<div class="err"><strong>Missing view:</strong> ' . h($viewFile) . '</div>';
+    } else {
+        require $viewFile;
+    }
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo '<div class="err"><strong>View error:</strong> ' . h($e->getMessage()) . '</div>';
+}
+?>
+
 </body>
 </html>
