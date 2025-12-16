@@ -2,18 +2,17 @@
 declare(strict_types=1);
 
 /**
- * Checkout view (Step A)
+ * Checkout view (Step C3a)
  * - Reads session cart
  * - Displays cart summary (products from DB)
- * - "Place order" clears cart (assessment demo)
+ * - "Place order" writes to orders + order_items, then clears cart
  *
- * Assumes:
- * - $pdo exists (from db.php)
- * - session already started in index.php
- * - h() exists in index.php
+ * Schema used (confirmed):
+ * orders: id (AI), userid, productid, quantity, created_at
+ * order_items: id (AI), order_id, product_id, qty, price_each
  */
 
-/** @var PDO $pdo */
+/** @var PDO|null $pdo */
 
 $cart = $_SESSION['cart'] ?? []; // product_id => qty
 $items = [];
@@ -23,45 +22,93 @@ $errors = [];
 
 function money(float $n): string { return '£' . number_format($n, 2); }
 
-try {
-    if ($cart) {
-        $ids = array_map('intval', array_keys($cart));
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+if (!($pdo instanceof PDO)) {
+    $errors[] = "Database not configured (PDO unavailable).";
+} else {
+    // Build display items from DB
+    try {
+        if ($cart) {
+            $ids = array_map('intval', array_keys($cart));
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
-        $stmt = $pdo->prepare("SELECT id, productname, price FROM products WHERE id IN ($placeholders) ORDER BY id ASC");
-        $stmt->execute($ids);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $pdo->prepare("SELECT id, productname, price FROM products WHERE id IN ($placeholders) ORDER BY id ASC");
+            $stmt->execute($ids);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $byId = [];
-        foreach ($rows as $r) { $byId[(int)$r['id']] = $r; }
+            $byId = [];
+            foreach ($rows as $r) { $byId[(int)$r['id']] = $r; }
 
-        foreach ($ids as $id) {
-            if (!isset($byId[$id])) { continue; }
-            $qty = (int)$cart[$id];
-            if ($qty < 1) { continue; }
+            foreach ($ids as $id) {
+                if (!isset($byId[$id])) { continue; }
+                $qty = (int)$cart[$id];
+                if ($qty < 1) { continue; }
 
-            $price = (float)$byId[$id]['price'];
-            $line = $price * $qty;
-            $total += $line;
+                $price = (float)$byId[$id]['price'];
+                $line = $price * $qty;
+                $total += $line;
 
-            $items[] = [
-                'id' => $id,
-                'name' => (string)$byId[$id]['productname'],
-                'price' => $price,
-                'qty' => $qty,
-                'line' => $line
-            ];
+                $items[] = [
+                    'id' => $id,
+                    'name' => (string)$byId[$id]['productname'],
+                    'price' => $price,
+                    'qty' => $qty,
+                    'line' => $line
+                ];
+            }
         }
+    } catch (Throwable $e) {
+        $errors[] = "Checkout view error: " . $e->getMessage();
     }
-} catch (Throwable $e) {
-    $errors[] = "Checkout view error: " . $e->getMessage();
 }
 
+// Handle place order (DB write)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place_order') {
-    $_SESSION['cart'] = [];
-    $placed = true;
-    $items = [];
-    $total = 0.0;
+    if (!($pdo instanceof PDO)) {
+        $errors[] = "Cannot place order: database not available.";
+    } elseif (!$items) {
+        $errors[] = "Cannot place order: cart is empty.";
+    } else {
+        // Demo user until login exists
+        $demoUserId = 1;
+
+        try {
+            $pdo->beginTransaction();
+
+            // Create an "order header" row (minimal; productid/quantity are nullable in schema).
+            $stmtOrder = $pdo->prepare("INSERT INTO orders (userid) VALUES (?)");
+            $stmtOrder->execute([$demoUserId]);
+            $orderId = (int)$pdo->lastInsertId();
+
+            // Insert order items
+            $stmtItem = $pdo->prepare("
+                INSERT INTO order_items (order_id, product_id, qty, price_each)
+                VALUES (?, ?, ?, ?)
+            ");
+
+            foreach ($items as $it) {
+                $stmtItem->execute([
+                    $orderId,
+                    (int)$it['id'],
+                    (int)$it['qty'],
+                    (float)$it['price']
+                ]);
+            }
+
+            $pdo->commit();
+
+            // Clear cart after successful commit
+            $_SESSION['cart'] = [];
+            $placed = true;
+            $items = [];
+            $total = 0.0;
+
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $errors[] = "Order placement failed: " . $e->getMessage();
+        }
+    }
 }
 ?>
 
@@ -69,7 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'place
 
 <?php if ($placed): ?>
   <div class="msg" style="border:1px solid #cfe9cf; background:#eef9ee; padding:10px; border-radius:8px; margin:12px 0;">
-    <strong>Order placed!</strong> (Demo) Cart cleared.
+    <strong>Order placed!</strong> Cart saved to database and cleared.
+    <div class="muted" style="margin-top:6px;">You can view it on the <a href="/index.php?page=orders">Orders</a> page.</div>
   </div>
 <?php endif; ?>
 
