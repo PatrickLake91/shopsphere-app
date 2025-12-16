@@ -19,13 +19,14 @@ SELECT
   o.id AS order_id,
   o.userid,
   o.status,
+  o.payment_method,
   o.created_at,
   COALESCE(SUM(oi.qty), 0) AS total_items,
   COALESCE(SUM(oi.qty * oi.price_each), 0) AS order_total
 FROM orders o
 LEFT JOIN order_items oi ON oi.order_id = o.id
 WHERE o.userid = ?
-GROUP BY o.id, o.userid, o.status, o.created_at
+GROUP BY o.id, o.userid, o.status, o.payment_method, o.created_at
 ORDER BY o.id DESC
 LIMIT 100
 ";
@@ -41,20 +42,20 @@ if (!$rows) {
 }
 
 echo '<table>';
-echo '<thead><tr><th>Order ID</th><th>User</th><th>Status</th><th>Created</th><th>Items</th><th>Total</th><th>Action</th></tr></thead><tbody>';
+echo '<thead><tr><th>Order ID</th><th>Status</th><th>Payment</th><th>Created</th><th>Items</th><th>Total</th><th>Action</th></tr></thead><tbody>';
 
 foreach ($rows as $r) {
     $oid = (int)$r['order_id'];
-    $uid = (int)$r['userid'];
-    $status = (string)$r['status'];
     $created = (string)$r['created_at'];
     $items = (int)$r['total_items'];
     $total = (float)$r['order_total'];
+    $status = (string)$r['status'];
+    $pay = (string)$r['payment_method'];
 
     echo '<tr>';
     echo '<td>' . h((string)$oid) . '</td>';
-    echo '<td>' . h((string)$uid) . '</td>';
     echo '<td>' . h($status) . '</td>';
+    echo '<td>' . h($pay) . '</td>';
     echo '<td>' . h($created) . '</td>';
     echo '<td>' . h((string)$items) . '</td>';
     echo '<td>£' . number_format($total, 2) . '</td>';
