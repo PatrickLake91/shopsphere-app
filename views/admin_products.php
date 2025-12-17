@@ -9,7 +9,7 @@ if ($userId !== 3) {
     http_response_code(403);
     echo '<h1>Admin Products</h1>';
     echo '<p class="msg" style="background:#ffecec; border:1px solid #f5c2c2;"><strong>Forbidden:</strong> admin access only (demo rule: user #3).</p>';
-    echo '<p class="muted">Log in as user <strong>#1</strong> to manage products.</p>';
+    echo '<p class="muted">Log in as user <strong>#3</strong> to manage products.</p>';
     return;
 }
 
@@ -44,7 +44,7 @@ foreach ($rows as $r) {
     echo '<tr>';
     echo '<td>' . h((string)$id) . '</td>';
     echo '<td>' . h($name) . '</td>';
-    echo '<td>Ã‚Â£' . number_format($price, 2) . '</td>';
+    echo '<td>&pound;' . number_format($price, 2) . '</td>';
     echo '<td>' . h((string)$stock) . '</td>';
     echo '<td>' . h($created) . '</td>';
     echo '</tr>';
