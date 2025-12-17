@@ -3,12 +3,12 @@ declare(strict_types=1);
 
 /** @var PDO|null $pdo */
 
-// Simple admin gate for demo: user #1 is "admin"
+// Simple admin gate for demo: user #3 is "admin"
 $userId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
 if ($userId !== 3) {
     http_response_code(403);
     echo '<h1>Admin Products</h1>';
-    echo '<p class="msg" style="background:#ffecec; border:1px solid #f5c2c2;"><strong>Forbidden:</strong> admin access only (demo rule: user #1).</p>';
+    echo '<p class="msg" style="background:#ffecec; border:1px solid #f5c2c2;"><strong>Forbidden:</strong> admin access only (demo rule: user #3).</p>';
     echo '<p class="muted">Log in as user <strong>#1</strong> to manage products.</p>';
     return;
 }
@@ -44,7 +44,7 @@ foreach ($rows as $r) {
     echo '<tr>';
     echo '<td>' . h((string)$id) . '</td>';
     echo '<td>' . h($name) . '</td>';
-    echo '<td>Â£' . number_format($price, 2) . '</td>';
+    echo '<td>Ã‚Â£' . number_format($price, 2) . '</td>';
     echo '<td>' . h((string)$stock) . '</td>';
     echo '<td>' . h($created) . '</td>';
     echo '</tr>';
